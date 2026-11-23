@@ -39,7 +39,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             parsed=urlsplit(self.path)
             if parsed.query or parsed.fragment: raise ValueError("query not allowed")
-            suffix=parsed.path.removeprefix("/mod/")
+            suffix=parsed.path.removeprefix("/mod/") or "index.html"
             target=(MOD_HTML / suffix).resolve()
             if not target.is_relative_to(MOD_HTML) or not target.is_file():
                 self.send_error(404); return
