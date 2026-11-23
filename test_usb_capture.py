@@ -19,6 +19,14 @@ class USBMidiCaptureTests(unittest.TestCase):
     def test_invalid_hex(self):
         with self.assertRaises(ValueError): parse_rows("1\t0\t0x02\t4\tZZ")
 
+    def test_reject_corrupt_capture_metadata(self):
+        for row in ("1\tNaN\t0x02\t4\t04f00001",
+                    "1\t0.1\t0x02\t8\t04f00001",
+                    "1\t0.1\t0x100\t4\t04f00001",
+                    "1\t0.1\t0x02\t-4\t04f00001"):
+            with self.subTest(row=row), self.assertRaises(ValueError):
+                parse_rows(row)
+
     def test_invalid_cin(self):
         midi,errors=decode_usb_midi(bytes.fromhex("00f00001"))
         self.assertEqual(midi,b"")
