@@ -19,7 +19,9 @@ def probe(url, timeout=2):
                 return False, f"HTTP {response.status}"
             if url.endswith("/api/health"):
                 data = json.loads(body)
-                return bool(data.get("ok")), f"USB connected={data.get('device_connected')}, writes={data.get('write_enabled')}"
+                safe = data.get("write_enabled") is False
+                connected = data.get("device_connected") is True
+                return bool(data.get("ok")) and safe and connected, f"USB connected={connected}, writes={data.get('write_enabled')}"
             return body.lstrip().lower().startswith(b"<!doctype html>"), "HTML served"
     except (URLError, OSError, ValueError, json.JSONDecodeError) as exc:
         return False, type(exc).__name__
