@@ -12,6 +12,8 @@ ORDER = {name:i for i,name in enumerate(BLOCKS)}
 PRESETS = Path(os.getenv('SPIDERDAY_PRESETS',str(Path.home()/'.local/share/spiderday/presets.json')))
 
 def compile_graph(graph):
+    if not isinstance(graph,dict):
+        raise ValueError('graph must be an object')
     nodes, edges = graph.get('nodes'), graph.get('edges')
     if not isinstance(nodes,list) or not isinstance(edges,list):
         raise ValueError('nodes and edges must be arrays')
@@ -19,13 +21,18 @@ def compile_graph(graph):
         raise ValueError('graph must contain 1..32 nodes and at most 64 edges')
     ids = {}
     for node in nodes:
-        if not isinstance(node,dict) or not isinstance(node.get('id'),str) or node['id'] in ids:
+        if not isinstance(node,dict) or not isinstance(node.get('id'),str) or not node['id'] or len(node['id']) > 128 or node['id'] in ids:
             raise ValueError('invalid or duplicate node id')
         if not isinstance(node.get('parameters',{}),dict):
             raise ValueError('parameters must be an object')
         if node.get('type') not in BLOCKS:
             raise ValueError('unsupported block type')
         ids[node['id']] = node
+    types={n['type'] for n in nodes}
+    if 'input' not in types or 'output' not in types:
+        raise ValueError('stock graph requires input and output nodes')
+    if len(nodes) < 2:
+        raise ValueError('stock graph requires at least input and output')
     if len(set(n['type'] for n in nodes)) != len(nodes):
         raise ValueError('stock profile supports one slot per effect type')
     ordered = sorted(nodes,key=lambda n:ORDER[n['type']])
