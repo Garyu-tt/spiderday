@@ -3,6 +3,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json, os
 from pathlib import Path
 from device import probe_usb
+from legacy_bridge import bridge_read, BridgeUnavailable
 
 BLOCKS = ('input','gate','comp','stomp','amp','mod','delay','reverb','wah','eq','volume','output')
 CONTROLLED = {'gate','comp','stomp','mod','delay','reverb','wah','eq','volume'}
@@ -58,6 +59,9 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(200,{'ok':True,'device':'Spider V 20','device_connected':bool(devices),'write_enabled':False})
         elif self.path=='/api/device':
             self.respond(200,{'devices':probe_usb(),'write_enabled':False})
+        elif self.path=='/api/legacy/presets':
+            try: self.respond(200,{'presets':bridge_read('/api/presets')})
+            except BridgeUnavailable: self.respond(503,{'error':'legacy bridge unavailable'})
         elif self.path=='/api/blocks':
             self.respond(200,{'blocks':[{'type':x,'controllable':x in CONTROLLED,'order':i} for i,x in enumerate(BLOCKS)]})
         elif self.path=='/api/presets':
