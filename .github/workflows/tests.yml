@@ -21,3 +21,12 @@ jobs:
         run: python -m compileall -q backend.py dev_proxy.py legacy_bridge.py device.py deploy
       - name: Unit tests
         run: python -m unittest discover -v
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: MOD UI adapter tests
+        run: node --test integrations/mod-ui/spiderday-client.test.mjs
