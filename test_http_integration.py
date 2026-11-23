@@ -69,6 +69,9 @@ class HTTPTests(unittest.TestCase):
         status,_,_=self.request(port,"POST","/api/graph/compile",payload,
                                {**headers,"Transfer-Encoding":"chunked"})
         self.assertEqual(status,400)
+        status,_,_=self.request(port,"OPTIONS","/api/graph/compile",None,
+                               {"Origin":"https://untrusted.example"})
+        self.assertEqual(status,403)
 
 if __name__=="__main__":
     unittest.main()
