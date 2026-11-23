@@ -10,7 +10,7 @@ class FakeResponse:
 
 class BridgeTests(unittest.TestCase):
     def test_read_presets(self):
-        with patch("legacy_bridge.urlopen", return_value=FakeResponse()) as open_mock:
+        with patch("legacy_bridge.OPENER.open", return_value=FakeResponse()) as open_mock:
             self.assertEqual(bridge_read("/api/presets", "http://127.0.0.1:5000"),{"presets":[]})
             self.assertEqual(open_mock.call_args.args[0],"http://127.0.0.1:5000/api/presets")
     def test_read_only_routes(self):
@@ -21,7 +21,7 @@ class BridgeTests(unittest.TestCase):
     def test_blocks_remote_host(self):
         with self.assertRaises(ValueError): bridge_read("/api/presets","http://example.com")
     def test_bridge_unavailable(self):
-        with patch("legacy_bridge.urlopen",side_effect=OSError("offline")):
+        with patch("legacy_bridge.OPENER.open",side_effect=OSError("offline")):
             with self.assertRaises(BridgeUnavailable): bridge_read("/api/presets")
 
 if __name__=="__main__": unittest.main()
