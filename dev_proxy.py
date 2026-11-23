@@ -17,21 +17,34 @@ class NoRedirect(HTTPRedirectHandler):
 OPENER = build_opener(NoRedirect())
 TARGETS = {"/spiderday/": "http://127.0.0.1:8765/"}
 MOD_HTML = Path(os.environ.get("SPIDERDAY_MOD_HTML", str(Path.home() / "mod-ui-spiderday" / "html"))).resolve()
-ALLOWED_METHODS = {"GET", "HEAD", "POST", "OPTIONS"}
+ALLOWED_METHODS = {"GET", "HEAD", "POST"}
 MAX_BODY = 65536
 API_GET = frozenset(("health","device","blocks","presets","legacy/presets","legacy/catalog","legacy/state","legacy/parameters","legacy/board"))
 API_POST = frozenset(("graph/compile",))
 
+def api_allowed(method, path):
+    """Only the documented read-only API and preview compiler may pass."""
+    if method not in ALLOWED_METHODS:
+        return False
+    try:
+        resolve(path)
+    except ValueError:
+        return False
+    name = path.removeprefix("/spiderday/api/")
+    if method == "POST":
+        return name in API_POST
+    return name in API_GET
+
 def resolve(path):
     parsed = urlsplit(path)
-    if unquote(parsed.path) != parsed.path or "\\" in parsed.path:
+    if unquote(parsed.path) != parsed.path or "\\" in parsed.path or "//" in parsed.path:
         raise ValueError("encoded or backslash paths not supported")
     if parsed.query or parsed.fragment:
         raise ValueError("query strings not supported")
     for prefix, target in TARGETS.items():
         if parsed.path.startswith(prefix):
             suffix = parsed.path[len(prefix):]
-            if ".." in suffix.split("/") or not suffix.startswith("api/"):
+            if any(part in (".", "..") for part in suffix.split("/")) or not suffix.startswith("api/"):
                 raise ValueError("invalid API path")
             return target + suffix
     raise ValueError("unsupported path")
@@ -43,15 +56,15 @@ class Handler(BaseHTTPRequestHandler):
         try:
             parsed=urlsplit(self.path)
             if parsed.query or parsed.fragment: raise ValueError("query not allowed")
-            if unquote(parsed.path) != parsed.path or "\\" in parsed.path:
+            if unquote(parsed.path) != parsed.path or "\\" in parsed.path or "//" in parsed.path:
                 raise ValueError("encoded paths not supported")
             suffix=parsed.path.removeprefix("/mod/") or "index.html"
             target=(MOD_HTML / suffix).resolve()
             if not target.is_relative_to(MOD_HTML) or not target.is_file():
                 self.send_error(404); return
-            data=target.read_bytes()
-            if len(data)>4*1024*1024:
+            if target.stat().st_size > 4*1024*1024:
                 self.send_error(413); return
+            data=target.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type",mimetypes.guess_type(str(target))[0] or "application/octet-stream")
             self.send_header("Content-Length",str(len(data)))
@@ -65,17 +78,17 @@ class Handler(BaseHTTPRequestHandler):
             return self.serve_mod()
         if self.command not in ALLOWED_METHODS:
             self.send_error(405); return
-        api_path=self.path.removeprefix("/spiderday/api/")
-        allowed = API_POST if self.command == "POST" else API_GET
-        if not self.path.startswith("/spiderday/api/") or api_path not in allowed:
+        if not api_allowed(self.command,self.path):
             self.send_error(404); return
         try:
             target = resolve(self.path)
+            if self.headers.get("Transfer-Encoding"):
+                self.send_error(400,"chunked bodies unsupported"); return
             size = int(self.headers.get("Content-Length", "0"))
             if size < 0 or size > MAX_BODY:
                 self.send_error(413); return
             body = self.rfile.read(size) if size else None
-            request = Request(target, data=body, method=self.command)
+            request = Request(target, data=body, method="GET" if self.command == "HEAD" else self.command)
             if body:
                 request.add_header("Content-Type",self.headers.get("Content-Type","application/json"))
             try:
@@ -97,7 +110,8 @@ class Handler(BaseHTTPRequestHandler):
     do_GET=forward
     do_POST=forward
     do_HEAD=forward
-    do_OPTIONS=forward
+    def do_OPTIONS(self):
+        self.send_error(405)
 
 if __name__=="__main__":
     host="127.0.0.1"
