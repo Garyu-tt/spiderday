@@ -3,6 +3,8 @@
 Development/diagnostic use only; this is not an authentication gateway.
 """
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+import mimetypes
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -13,8 +15,8 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 OPENER = build_opener(NoRedirect())
-TARGETS = {"/spiderday/": "http://127.0.0.1:8765/",
-           "/mod/": "http://127.0.0.1:8888/"}
+TARGETS = {"/spiderday/": "http://127.0.0.1:8765/"}
+MOD_HTML = Path(os.environ.get("SPIDERDAY_MOD_HTML", str(Path.home() / "mod-ui-spiderday" / "html"))).resolve()
 ALLOWED_METHODS = {"GET", "HEAD", "POST", "OPTIONS"}
 MAX_BODY = 65536
 
@@ -31,7 +33,30 @@ def resolve(path):
     raise ValueError("unsupported path")
 
 class Handler(BaseHTTPRequestHandler):
+    def serve_mod(self):
+        if self.command not in ("GET", "HEAD"):
+            self.send_error(405); return
+        try:
+            parsed=urlsplit(self.path)
+            if parsed.query or parsed.fragment: raise ValueError("query not allowed")
+            suffix=parsed.path.removeprefix("/mod/")
+            target=(MOD_HTML / suffix).resolve()
+            if not target.is_relative_to(MOD_HTML) or not target.is_file():
+                self.send_error(404); return
+            data=target.read_bytes()
+            if len(data)>4*1024*1024:
+                self.send_error(413); return
+            self.send_response(200)
+            self.send_header("Content-Type",mimetypes.guess_type(str(target))[0] or "application/octet-stream")
+            self.send_header("Content-Length",str(len(data)))
+            self.send_header("Cache-Control","no-store")
+            self.end_headers()
+            if self.command!="HEAD": self.wfile.write(data)
+        except (ValueError,OSError): self.send_error(400)
+
     def forward(self):
+        if self.path.startswith("/mod/"):
+            return self.serve_mod()
         if self.command not in ALLOWED_METHODS:
             self.send_error(405); return
         try:
