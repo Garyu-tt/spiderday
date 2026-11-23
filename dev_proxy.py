@@ -19,7 +19,7 @@ TARGETS = {"/spiderday/": "http://127.0.0.1:8765/"}
 MOD_HTML = Path(os.environ.get("SPIDERDAY_MOD_HTML", str(Path.home() / "mod-ui-spiderday" / "html"))).resolve()
 ALLOWED_METHODS = {"GET", "HEAD", "POST"}
 MAX_BODY = 65536
-API_GET = frozenset(("health","device","blocks","presets","legacy/presets","legacy/catalog","legacy/state","legacy/parameters","legacy/board"))
+API_GET = frozenset(("health","device","midi","blocks","presets","legacy/presets","legacy/catalog","legacy/state","legacy/parameters","legacy/board"))
 API_POST = frozenset(("graph/compile",))
 
 def api_allowed(method, path):
