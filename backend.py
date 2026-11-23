@@ -61,8 +61,13 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path=='/api/device':
             devices=[{k:v for k,v in d.items() if k!='serial'} for d in probe_usb()]
             self.respond(200,{'devices':devices,'write_enabled':False})
-        elif self.path=='/api/legacy/presets':
-            try: self.respond(200,{'presets':bridge_read('/api/presets')})
+        elif self.path in ('/api/legacy/presets','/api/legacy/catalog','/api/legacy/state','/api/legacy/parameters','/api/legacy/board'):
+            source=self.path.removeprefix('/api/legacy')
+            try:
+                data=bridge_read('/api'+source)
+                if source=='/state' and isinstance(data,dict):
+                    data={k:v for k,v in data.items() if k not in ('device','error')}
+                self.respond(200,data)
             except BridgeUnavailable: self.respond(503,{'error':'legacy bridge unavailable'})
         elif self.path=='/api/blocks':
             self.respond(200,{'blocks':[{'type':x,'controllable':x in CONTROLLED,'order':i} for i,x in enumerate(BLOCKS)]})
