@@ -110,6 +110,11 @@ class Handler(BaseHTTPRequestHandler):
     do_GET=forward
     do_POST=forward
     do_HEAD=forward
+    def reject_method(self):
+        self.send_error(405)
+    do_PUT=reject_method
+    do_PATCH=reject_method
+    do_DELETE=reject_method
     def do_OPTIONS(self):
         self.send_error(405)
 
