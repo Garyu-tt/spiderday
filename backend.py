@@ -2,6 +2,7 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json, os
 from pathlib import Path
+from device import probe_usb
 
 BLOCKS = ('input','gate','comp','stomp','amp','mod','delay','reverb','wah','eq','volume','output')
 CONTROLLED = {'gate','comp','stomp','mod','delay','reverb','wah','eq','volume'}
@@ -12,10 +13,14 @@ def compile_graph(graph):
     nodes, edges = graph.get('nodes'), graph.get('edges')
     if not isinstance(nodes,list) or not isinstance(edges,list):
         raise ValueError('nodes and edges must be arrays')
+    if not nodes or len(nodes) > 32 or len(edges) > 64:
+        raise ValueError('graph must contain 1..32 nodes and at most 64 edges')
     ids = {}
     for node in nodes:
         if not isinstance(node,dict) or not isinstance(node.get('id'),str) or node['id'] in ids:
             raise ValueError('invalid or duplicate node id')
+        if not isinstance(node.get('parameters',{}),dict):
+            raise ValueError('parameters must be an object')
         if node.get('type') not in BLOCKS:
             raise ValueError('unsupported block type')
         ids[node['id']] = node
@@ -49,7 +54,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self): self.respond(200,{})
     def do_GET(self):
         if self.path=='/api/health':
-            self.respond(200,{'ok':True,'device':'Spider V 20','device_connected':'not-probed','write_enabled':False})
+            devices=probe_usb()
+            self.respond(200,{'ok':True,'device':'Spider V 20','device_connected':bool(devices),'write_enabled':False})
+        elif self.path=='/api/device':
+            self.respond(200,{'devices':probe_usb(),'write_enabled':False})
         elif self.path=='/api/blocks':
             self.respond(200,{'blocks':[{'type':x,'controllable':x in CONTROLLED,'order':i} for i,x in enumerate(BLOCKS)]})
         elif self.path=='/api/presets':
