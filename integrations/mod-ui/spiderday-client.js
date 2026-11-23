@@ -12,6 +12,7 @@ export class SpiderDayClient {
   }
   async health() { return this.get("/api/health"); }
   async device() { return this.get("/api/device"); }
+  async midi() { return this.get("/api/midi"); }
   async blocks() { return this.get("/api/blocks"); }
   async legacyState() { return this.get("/api/legacy/state"); }
   async legacyCatalog() { return this.get("/api/legacy/catalog"); }
