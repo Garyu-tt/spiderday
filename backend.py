@@ -2,6 +2,7 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json, os
 from pathlib import Path
+from urllib.parse import urlsplit
 from device import probe_usb
 from legacy_bridge import bridge_read, BridgeUnavailable
 
@@ -58,7 +59,8 @@ class Handler(BaseHTTPRequestHandler):
             devices=probe_usb()
             self.respond(200,{'ok':True,'device':'Spider V 20','device_connected':bool(devices),'write_enabled':False})
         elif self.path=='/api/device':
-            self.respond(200,{'devices':probe_usb(),'write_enabled':False})
+            devices=[{k:v for k,v in d.items() if k!='serial'} for d in probe_usb()]
+            self.respond(200,{'devices':devices,'write_enabled':False})
         elif self.path=='/api/legacy/presets':
             try: self.respond(200,{'presets':bridge_read('/api/presets')})
             except BridgeUnavailable: self.respond(503,{'error':'legacy bridge unavailable'})
@@ -79,6 +81,8 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__=='__main__':
     host=os.getenv('SPIDERDAY_HOST','127.0.0.1')
+    if host not in ('127.0.0.1','::1','localhost') and os.getenv('SPIDERDAY_UNSAFE_LAN') != 'I_UNDERSTAND_NO_AUTH':
+        raise SystemExit('Refusing non-loopback bind without SPIDERDAY_UNSAFE_LAN=I_UNDERSTAND_NO_AUTH')
     port=int(os.getenv('SPIDERDAY_PORT','8765'))
     print(f'Spider Day preview API: http://{host}:{port}')
     ThreadingHTTPServer((host,port),Handler).serve_forever()
