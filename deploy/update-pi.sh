@@ -3,7 +3,7 @@
 # No firmware flashing, DSP writes, or network exposure.
 set -Eeuo pipefail
 cd "$HOME/spiderday"
-if [[ -n "$(git status --porcelain)" ]]; then
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "Refusing update: local Spider Day changes exist" >&2
   exit 2
 fi
@@ -13,7 +13,7 @@ python3 -m compileall -q backend.py dev_proxy.py legacy_bridge.py device.py depl
 python3 -m unittest discover -q
 if [[ -d "$HOME/mod-ui-spiderday/.git" ]]; then
   cd "$HOME/mod-ui-spiderday"
-  if [[ -n "$(git status --porcelain)" ]]; then
+  if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
     echo "Refusing MOD UI update: local changes exist" >&2
     exit 2
   fi
@@ -26,4 +26,15 @@ fi
 systemctl --user restart spiderday-api.service spiderday-proxy.service
 systemctl --user is-active --quiet spiderday-api.service
 systemctl --user is-active --quiet spiderday-proxy.service
-python3 "$HOME/spiderday/deploy/healthcheck.py"
+ready=0
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  if python3 "$HOME/spiderday/deploy/healthcheck.py"; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$ready" != 1 ]]; then
+  echo "Spider Day healthcheck failed after 10 attempts" >&2
+  exit 1
+fi
