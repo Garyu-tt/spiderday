@@ -8,7 +8,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import urlopen
 
-ALLOWED_PATHS = frozenset(("/api/presets", "/api/catalog", "/api/status"))
+ALLOWED_PATHS = frozenset(("/api/presets", "/api/catalog", "/api/state", "/api/parameters", "/api/board"))
 
 class BridgeUnavailable(RuntimeError):
     pass
@@ -16,7 +16,7 @@ class BridgeUnavailable(RuntimeError):
 def bridge_read(path, base_url=None, timeout=2):
     if path not in ALLOWED_PATHS:
         raise ValueError("legacy bridge path not on read-only allowlist")
-    base = base_url or os.environ.get("SPIDERDAY_LEGACY_URL", "http://127.0.0.1:5000")
+    base = base_url or os.environ.get("SPIDERDAY_LEGACY_URL", "http://127.0.0.1:8081")
     parsed = urlsplit(base)
     if parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost") or parsed.username or parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
         raise ValueError("legacy bridge must be an HTTP loopback service")
