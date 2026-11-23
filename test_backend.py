@@ -1,4 +1,5 @@
 import unittest
+import math
 from backend import compile_graph
 
 class GraphTests(unittest.TestCase):
@@ -15,6 +16,21 @@ class GraphTests(unittest.TestCase):
     def test_empty_node_id_rejected(self):
         with self.assertRaises(ValueError):
             compile_graph({'nodes':[{'id':'','type':'input'},{'id':'b','type':'output'}], 'edges':[{'source':'','target':'b'}]})
+    def test_nonfinite_parameter_rejected(self):
+        for value in (math.nan,math.inf,-math.inf):
+            graph={'nodes':[{'id':'a','type':'input','parameters':{'gain':value}},
+                            {'id':'b','type':'output'}],
+                   'edges':[{'source':'a','target':'b'}]}
+            with self.assertRaisesRegex(ValueError,'finite'):
+                compile_graph(graph)
+    def test_deep_parameters_rejected(self):
+        nested={'value':1}
+        for _ in range(10): nested={'next':nested}
+        graph={'nodes':[{'id':'a','type':'input','parameters':nested},
+                        {'id':'b','type':'output'}],
+               'edges':[{'source':'a','target':'b'}]}
+        with self.assertRaisesRegex(ValueError,'deeply'):
+            compile_graph(graph)
     def test_reverse_rejected(self):
         with self.assertRaises(ValueError):
             compile_graph({'nodes':[{'id':'a','type':'output'},{'id':'b','type':'input'}],
