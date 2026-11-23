@@ -69,9 +69,15 @@ class HTTPTests(unittest.TestCase):
         status,_,_=self.request(port,"POST","/api/graph/compile",payload,
                                {**headers,"Transfer-Encoding":"chunked"})
         self.assertEqual(status,400)
+        status,_,_=self.request(port,"POST","/api/graph/compile",payload.replace("{}", "{}"),
+                               {**headers,"Origin":"https://untrusted.example"})
+        self.assertEqual(status,403)
         status,_,_=self.request(port,"OPTIONS","/api/graph/compile",None,
                                {"Origin":"https://untrusted.example"})
         self.assertEqual(status,403)
+        malformed=payload.replace('"edges":', '"extra": NaN, "edges":')
+        status,_,_=self.request(port,"POST","/api/graph/compile",malformed,headers)
+        self.assertEqual(status,400)
 
 if __name__=="__main__":
     unittest.main()
