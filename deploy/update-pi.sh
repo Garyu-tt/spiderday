@@ -7,7 +7,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
   echo "Refusing update: local Spider Day changes exist" >&2
   exit 2
 fi
-git fetch --ff-only origin main
+git fetch origin main
 git merge --ff-only origin/main
 python3 -m compileall -q backend.py dev_proxy.py legacy_bridge.py device.py deploy
 python3 -m unittest discover -q
