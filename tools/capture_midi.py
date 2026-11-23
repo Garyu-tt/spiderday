@@ -7,6 +7,7 @@ and after checking whether the device is already in use.
 """
 import argparse
 import os
+import re
 from pathlib import Path
 import select
 import stat
@@ -19,7 +20,7 @@ MAX_SECONDS = 30
 def capture(path: Path, seconds: float, limit: int) -> bytes:
     if not (0 < seconds <= MAX_SECONDS and 0 < limit <= MAX_BYTES):
         raise ValueError("capture bounds exceeded")
-    if not path.name.startswith("midiC") or path.parent != Path("/dev/snd"):
+    if not re.fullmatch(r"midiC[0-9]+D[0-9]+",path.name) or path.parent != Path("/dev/snd"):
         raise ValueError("only /dev/snd/midiC*D* is supported")
     fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOCTTY)
     try:
