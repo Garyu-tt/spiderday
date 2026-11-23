@@ -4,6 +4,7 @@ import json, os, math
 from pathlib import Path
 from urllib.parse import urlsplit
 from device import probe_usb
+from midi_probe import inventory
 from legacy_bridge import bridge_read, BridgeUnavailable
 
 BLOCKS = ('input','gate','comp','stomp','amp','mod','delay','reverb','wah','eq','volume','output')
@@ -100,6 +101,8 @@ class Handler(BaseHTTPRequestHandler):
                     data={k:v for k,v in data.items() if k not in ('device','error')}
                 self.respond(200,data)
             except BridgeUnavailable: self.respond(503,{'error':'legacy bridge unavailable'})
+        elif self.path=='/api/midi':
+            self.respond(200,inventory())
         elif self.path=='/api/blocks':
             self.respond(200,{'blocks':[{'type':x,'controllable':x in CONTROLLED,'order':i} for i,x in enumerate(BLOCKS)]})
         elif self.path=='/api/presets':
