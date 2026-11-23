@@ -1,6 +1,6 @@
 """Spider Day preview control plane. No DSP writes or firmware flashing."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import json, os
+import json, os, math
 from pathlib import Path
 from urllib.parse import urlsplit
 from device import probe_usb
@@ -10,6 +10,23 @@ BLOCKS = ('input','gate','comp','stomp','amp','mod','delay','reverb','wah','eq',
 CONTROLLED = {'gate','comp','stomp','mod','delay','reverb','wah','eq','volume'}
 ORDER = {name:i for i,name in enumerate(BLOCKS)}
 PRESETS = Path(os.getenv('SPIDERDAY_PRESETS',str(Path.home()/'.local/share/spiderday/presets.json')))
+
+def validate_parameters(value, depth=0):
+    if depth > 8:
+        raise ValueError('parameters nested too deeply')
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError('parameters must contain finite numbers')
+    if isinstance(value, dict):
+        if len(value) > 128 or any(not isinstance(k,str) or len(k)>128 for k in value):
+            raise ValueError('invalid parameter keys')
+        for item in value.values(): validate_parameters(item,depth+1)
+    elif isinstance(value, list):
+        if len(value)>128: raise ValueError('parameter list too large')
+        for item in value: validate_parameters(item,depth+1)
+    elif value is not None and not isinstance(value,(str,int,float,bool)):
+        raise ValueError('unsupported parameter value')
+    elif isinstance(value,str) and len(value)>4096:
+        raise ValueError('parameter string too long')
 
 def compile_graph(graph):
     if not isinstance(graph,dict):
@@ -25,6 +42,7 @@ def compile_graph(graph):
             raise ValueError('invalid or duplicate node id')
         if not isinstance(node.get('parameters',{}),dict):
             raise ValueError('parameters must be an object')
+        validate_parameters(node.get('parameters',{}))
         if node.get('type') not in BLOCKS:
             raise ValueError('unsupported block type')
         ids[node['id']] = node
@@ -98,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('chunked request unsupported')
             size=int(self.headers.get('Content-Length','0'))
             if not 0<size<=65536: raise ValueError('request size must be 1..65536 bytes')
-            self.respond(200,compile_graph(json.loads(self.rfile.read(size))))
+            self.respond(200,compile_graph(json.loads(self.rfile.read(size),parse_constant=lambda x: (_ for _ in ()).throw(ValueError('non-finite JSON number')))))
         except (ValueError,TypeError,KeyError) as e: self.respond(400,{'error':str(e)})
 
 if __name__=='__main__':
