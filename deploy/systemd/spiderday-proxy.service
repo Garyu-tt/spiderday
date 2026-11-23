@@ -1,0 +1,16 @@
+[Unit]
+Description=Spider Day loopback MOD UI proxy
+After=network.target spiderday-api.service
+Wants=spiderday-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/spiderday
+ExecStart=/usr/bin/python3 %h/spiderday/dev_proxy.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
