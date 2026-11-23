@@ -14,7 +14,9 @@ python3 backend.py
 
 Defaults to `127.0.0.1:8765`. To expose to a trusted LAN, set `SPIDERDAY_HOST=0.0.0.0`; **do not expose this prototype publicly**. Set `SPIDERDAY_UI_ORIGIN` to the MOD UI origin. No authentication is implemented.
 
-Endpoints: `GET /api/health`, `GET /api/blocks`, `GET /api/presets`, `POST /api/graph/compile`.
+Endpoints: `GET /api/health`, `GET /api/device`, `GET /api/blocks`, `GET /api/presets`, `POST /api/graph/compile`.
+
+`GET /api/device` reads Linux sysfs (`/sys/bus/usb/devices`) and detects the known Spider V 20 USB VID:PID `0e41:506f`. It does not open the MIDI port or transmit anything. `GET /api/health` now reports actual USB presence (not DSP readiness).
 
 Example request:
 
