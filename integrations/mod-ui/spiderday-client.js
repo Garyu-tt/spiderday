@@ -29,15 +29,23 @@ export class SpiderDayClient {
   }
 }
 
-// Convert a simple ordered MOD UI board to a preview-only stock DSP graph.
-// A real graph editor should supply its explicit edges rather than using this.
+// Accept a legacy slot list, or a board object containing an effects array.
+// Reject unsupported structures instead of silently inventing a DSP chain.
 export function boardToPreviewGraph(board) {
-  if (!Array.isArray(board)) throw new TypeError("board must be an array");
   const order = ["input","gate","comp","stomp","amp","mod","delay","reverb","wah","eq","volume","output"];
-  const selected = new Set(board.map(item => item.id));
-  selected.add("input");
-  selected.add("output");
-  const nodes = order.filter(type => selected.has(type)).map(type => ({id: type, type}));
-  const edges = nodes.slice(1).map((node, i) => ({source: nodes[i].id, target: node.id}));
-  return {nodes, edges};
+  const slots = Array.isArray(board) ? board : board?.effects;
+  if (!Array.isArray(slots)) throw new TypeError("board must be an array or contain an effects array");
+  const allowed = new Set(order.slice(1,-1));
+  const selected = new Set(["input","output"]);
+  for (const item of slots) {
+    const type = typeof item === "string" ? item : item?.type ?? item?.id;
+    if (typeof type !== "string" || !allowed.has(type)) {
+      throw new TypeError("unsupported stock DSP slot: " + String(type));
+    }
+    if (selected.has(type)) throw new TypeError("duplicate stock DSP slot: " + type);
+    selected.add(type);
+  }
+  const nodes = order.filter(type => selected.has(type)).map(type => ({id:type,type}));
+  const edges = nodes.slice(1).map((node,i) => ({source:nodes[i].id,target:node.id}));
+  return {nodes,edges};
 }
