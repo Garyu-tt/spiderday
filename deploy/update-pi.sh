@@ -19,6 +19,9 @@ if [[ -d "$HOME/mod-ui-spiderday/.git" ]]; then
   fi
   git fetch origin master
   git merge --ff-only origin/master
+else
+  echo "MOD UI checkout missing: $HOME/mod-ui-spiderday" >&2
+  exit 2
 fi
 systemctl --user restart spiderday-api.service spiderday-proxy.service
 systemctl --user is-active --quiet spiderday-api.service
