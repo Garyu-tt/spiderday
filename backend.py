@@ -55,12 +55,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header('Content-Type','application/json; charset=utf-8')
         self.send_header('Content-Length',str(len(data)))
-        self.send_header('Access-Control-Allow-Origin',os.getenv('SPIDERDAY_UI_ORIGIN','http://localhost:8080'))
+        origin=os.getenv('SPIDERDAY_UI_ORIGIN','')
+        if origin and self.headers.get('Origin') == origin:
+            self.send_header('Access-Control-Allow-Origin',origin)
+            self.send_header('Vary','Origin')
         self.send_header('Access-Control-Allow-Headers','Content-Type')
         self.send_header('Access-Control-Allow-Methods','GET,POST,OPTIONS')
         self.end_headers()
         self.wfile.write(data)
-    def do_OPTIONS(self): self.respond(200,{})
+    def do_OPTIONS(self):
+        if self.path != '/api/graph/compile' or self.headers.get('Origin') != os.getenv('SPIDERDAY_UI_ORIGIN','') or not os.getenv('SPIDERDAY_UI_ORIGIN'):
+            return self.respond(403,{'error':'CORS preflight not authorized'})
+        self.respond(200,{})
     def do_GET(self):
         if self.path=='/api/health':
             devices=probe_usb()
@@ -85,7 +91,11 @@ class Handler(BaseHTTPRequestHandler):
         else: self.respond(404,{'error':'not found'})
     def do_POST(self):
         if self.path!='/api/graph/compile': return self.respond(404,{'error':'not found'})
+        if self.headers.get('Origin') and self.headers.get('Origin') != os.getenv('SPIDERDAY_UI_ORIGIN',''):
+            return self.respond(403,{'error':'origin not authorized'})
         try:
+            if self.headers.get('Transfer-Encoding'):
+                raise ValueError('chunked request unsupported')
             size=int(self.headers.get('Content-Length','0'))
             if not 0<size<=65536: raise ValueError('request size must be 1..65536 bytes')
             self.respond(200,compile_graph(json.loads(self.rfile.read(size))))
