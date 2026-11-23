@@ -6,7 +6,13 @@ import json
 import os
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import urlopen
+from urllib.request import build_opener, HTTPRedirectHandler
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+OPENER = build_opener(NoRedirect())
 
 ALLOWED_PATHS = frozenset(("/api/presets", "/api/catalog", "/api/state", "/api/parameters", "/api/board"))
 
@@ -22,7 +28,7 @@ def bridge_read(path, base_url=None, timeout=2):
         raise ValueError("legacy bridge must be an HTTP loopback service")
     url = base.rstrip("/") + path
     try:
-        with urlopen(url, timeout=timeout) as response:
+        with OPENER.open(url, timeout=timeout) as response:
             if response.status != 200:
                 raise BridgeUnavailable("legacy bridge returned non-200")
             data = response.read(1024 * 1024 + 1)
