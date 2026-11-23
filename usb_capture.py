@@ -5,6 +5,7 @@ USB-MIDI event packets have a 1-byte CIN/cable header per four-byte event.
 This module never accesses a USB or MIDI device.
 """
 import re
+import math
 from collections import Counter
 from sysex_decode import summarize
 
@@ -24,8 +25,21 @@ def parse_rows(text, max_rows=20000):
             raise ValueError(f"line {line_no}: invalid hex")
         data=bytes.fromhex(hexdata)
         if len(data)>65536: raise ValueError(f"line {line_no}: packet too large")
-        rows.append({"number":int(number),"timestamp":float(timestamp),
-                     "endpoint":int(endpoint,16),"reported_length":int(length),
+        try:
+            packet_number=int(number)
+            packet_time=float(timestamp)
+            packet_endpoint=int(endpoint,16)
+            packet_length=int(length)
+        except ValueError as exc:
+            raise ValueError(f"line {line_no}: invalid packet metadata") from exc
+        if not math.isfinite(packet_time) or packet_number < 0 or packet_length < 0:
+            raise ValueError(f"line {line_no}: invalid packet metadata")
+        if packet_length != len(data):
+            raise ValueError(f"line {line_no}: reported length mismatch")
+        if not 0 <= packet_endpoint <= 255:
+            raise ValueError(f"line {line_no}: invalid endpoint")
+        rows.append({"number":packet_number,"timestamp":packet_time,
+                     "endpoint":packet_endpoint,"reported_length":packet_length,
                      "data":data})
     return rows
 
